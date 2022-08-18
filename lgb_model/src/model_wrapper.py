@@ -81,12 +81,15 @@ def train(settings):
     train_df = read_dataset(all_df, 'train')
     valid_df = read_dataset(all_df, 'valid')
     test_df = read_dataset(all_df, 'test')
-    print('Init | train_df:{}, valid_df:{}, test_df:{}'.format(train_df.shape, valid_df.shape, test_df.shape))
+    print(
+        f'Init | train_df:{train_df.shape}, valid_df:{valid_df.shape}, test_df:{test_df.shape}'
+    )
+
     del all_df
 
     # define the columns
     TARGET_COL = 'target'
-    PRED_TARGET_COL = 'pred_' + TARGET_COL
+    PRED_TARGET_COL = f'pred_{TARGET_COL}'
     CAT_COL = ['TurbID']
     USELESS_COL = ['Day', 'Tmstamp', 'date', 'data_type', 'abnormal', 'time']
     USE_COL = [ c for c in list(train_df) if (c not in USELESS_COL) and (c != TARGET_COL)]
@@ -124,7 +127,7 @@ def train(settings):
 
     # predict
     valid_df.loc[:, PRED_TARGET_COL] = lgb_model.predict(valid_df[USE_COL], num_iteration=lgb_model.best_iteration)
-    test_df.loc[:, PRED_TARGET_COL] = lgb_model.predict(test_df[USE_COL], num_iteration=lgb_model.best_iteration)  
+    test_df.loc[:, PRED_TARGET_COL] = lgb_model.predict(test_df[USE_COL], num_iteration=lgb_model.best_iteration)
     del train_matrix, valid_matrix, test_matrix
 
     # inverse standardization
@@ -134,13 +137,13 @@ def train(settings):
 
     # do the short-term adjustment
     weights = []
+    # when to become 0
+    zero_loc = 75
     for t in range(288):
-        # when to become 0
-        zero_loc = 75
         if t < zero_loc:
             weights.append((t-zero_loc)**2/zero_loc**2)
         else:
-            weights.append(0) 
+            weights.append(0)
     lookback_num = 10 # lookback window size
     dev_df = pd.concat([valid_df, test_df], axis=0).sort_values(['TurbID','Day','Tmstamp'], ascending=True)
     turbids = dev_df['TurbID'].unique()
@@ -173,14 +176,14 @@ def train(settings):
     # evaluation
     eval_lgb_result(valid_df)
     eval_lgb_result(test_df)
-    
+
     # save pred result
     # valid_df.to_csv('/home/notebook/code/group/intention_rec/TimeSeries/kdd2022/src_gbdt/lgb_valid_res_df.csv', index=False)
     # test_df.to_csv('/home/notebook/code/group/intention_rec/TimeSeries/kdd2022/src_gbdt/lgb_test_res_df.csv', index=False)
-    
+
     # save the best model
     save_model_flag = True
-    if save_model_flag == True:
+    if save_model_flag:
         lgb_model.save_model(settings['lgb_model_save_path'], num_iteration=lgb_model.best_iteration)
 
     # plot feature importance figure
@@ -211,11 +214,11 @@ class ModelWrapper():
 
         # define the columns
         TARGET_COL = 'target'
-        PRED_TARGET_COL = 'pred_' + TARGET_COL
+        PRED_TARGET_COL = f'pred_{TARGET_COL}'
         CAT_COL = ['TurbID']
         USELESS_COL = ['Day', 'Tmstamp', 'date', 'data_type', 'abnormal', 'time']
         USE_COL = [c for c in list(pred_df) if (c not in USELESS_COL) and (c != TARGET_COL)]
-        
+
         # LGB prediction
         tmodel_num = len(self.models)
         t_ensemble_pred_df = pd.DataFrame()

@@ -50,9 +50,9 @@ class EnsembleWrapper:
         
         
     def predict(self, load_data_returns, load_data_returns_tmp):
-        
-        
-        
+
+
+
         preds = []
         for args, model_wrapper in zip(self.args_list, self.model_wrappers):
             if args['model_file_name'].find('ETMP')>0:
@@ -61,22 +61,15 @@ class EnsembleWrapper:
                 (values, mask, value_cols, enc_f_cols, f_cols, value2_cols, enc_f2_cols, f2_cols, extend_features) = load_data_returns
             extend_features = extend_features.iloc[:self.output_len]
             x_input = values.iloc[-args['input_len']:]
-            x_mask = mask.iloc[-args['input_len']:]  
+            x_mask = mask.iloc[-args['input_len']:]
             scaler = args['stored_args']['stored_scaler']
             scaler2 = args['stored_args']['stored_scaler2']
             dataset = module.data_lstm_enc_f.MyDataset(x_input, x_mask, 
                     value_cols, enc_f_cols, f_cols, value2_cols, enc_f2_cols, f2_cols, args, scaler, scaler2, extend_features)
             dataloader = module.data_lstm_enc_f.create_data_loader([dataset], args)[0]
             x_enc, x2_enc, extend_feature, mask_enc = list(dataloader)[0]
-            if len(args['f_cols'])>0:
-                f_dec = extend_feature
-            else:
-                f_dec = None
-            if len(args['f2_cols']) > 0:
-                f2_dec = extend_feature
-            else:
-                f2_dec = None
-            
+            f_dec = extend_feature if len(args['f_cols'])>0 else None
+            f2_dec = extend_feature if len(args['f2_cols']) > 0 else None
             if args['paddlepaddle_model'] == 'LSTM_enc2_tp2':
                 scaler = args['stored_args']['stored_scaler']
                 u, std = scaler.mean, scaler.std
@@ -112,7 +105,7 @@ def forecast(settings, return_single_preds=False):
         The predictions
     """
     df_enc = pd.read_csv(settings['path_to_test_x'])
-    
+
     if global_args['paddlepaddle_model'] == 'RNN_multiple':
         load_data_returns = module.data_lstm_enc_f.load_data(global_args, df_enc, True)
         load_data_returns_tmp = module.data_lstm_enc_f.load_data(tmp_args, df_enc, True)
@@ -123,7 +116,7 @@ def forecast(settings, return_single_preds=False):
             if return_single_preds:
                 preds_list.append(preds)
             pred_medians.append(pred_median)
-            
+
         if return_single_preds:
             return preds_list, pred_medians
         pred = np.concatenate(pred_medians, axis=1)

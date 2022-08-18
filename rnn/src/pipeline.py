@@ -12,17 +12,13 @@ path = os.path.dirname(os.path.abspath(__file__))
 p1_path = os.path.join(path, '../..')
 add_path(p1_path)
 add_path(path)
-add_path(path+'/prepares')
+add_path(f'{path}/prepares')
 
 ## local pacakges, ignore this
 add_path('/home/notebook/code/group/intention_rec/TimeSeries/kdd2022/paddle_lc_libs')
 
 #from prepare import *
-if len(sys.argv) < 2:
-    module_file = 'prepare.py'
-else:
-    module_file = sys.argv[1]
-
+module_file = 'prepare.py' if len(sys.argv) < 2 else sys.argv[1]
 module_file = re.sub('.py$', '', module_file)
 print(module_file)
 module = __import__(module_file)

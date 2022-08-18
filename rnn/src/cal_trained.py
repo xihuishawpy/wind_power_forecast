@@ -13,11 +13,12 @@ ready = []
 for f in ls:
     x = f.replace('updated_args', '').split('_')
     if f.find('TMP') < 0:
-        prep = "prep_HH_{}_HD1_{}_HD2_{}_OUT_{}_PD_{}_AT_{}".format(x[2],x[4], x[6], x[8], x[10], x[12])
+        prep = f"prep_HH_{x[2]}_HD1_{x[4]}_HD2_{x[6]}_OUT_{x[8]}_PD_{x[10]}_AT_{x[12]}"
     else:
         #prep = "prep_HH_{}_HD1_{}_HD2_{}_OUT_{}_PD_{}_AT_{}".format(x[2],x[4], x[6], x[8], x[10], x[12])
-        prep = "prep_HHTMP_{}_HD1_{}_HD2_{}_OUT_{}_PD_{}_AT_{}".format(x[2],x[4], x[6], x[8], x[10], x[12])
-        
+        prep = f"prep_HHTMP_{x[2]}_HD1_{x[4]}_HD2_{x[6]}_OUT_{x[8]}_PD_{x[10]}_AT_{x[12]}"
+
+
     ready.append(prep)
 
 ready.sort(key=lambda x:int(x.split('_')[8]))
@@ -46,7 +47,7 @@ with open('prepare_ensemble_origin.py') as f:
 text = text.replace('FFFF', tm).replace('ENSEMBLE_LIST', str(ensemble_preps))
 with open('prepare.py', 'w') as f:
     f.write(text)
-    
+
 if sys.argv[-1] == 'True':
     os.system("python3 pack.py")
 else:
