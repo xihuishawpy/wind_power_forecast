@@ -15,8 +15,7 @@ def cal_model_file(args):
     checkpoint_path = os.path.abspath(checkpoint_path)
     if not os.path.isdir(checkpoint_path):
         os.mkdir(checkpoint_path)
-    model_file = os.path.join(checkpoint_path, args['model_file_name'])
-    return model_file
+    return os.path.join(checkpoint_path, args['model_file_name'])
 
 def cal_arg_file(args):
     """

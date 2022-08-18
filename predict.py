@@ -20,21 +20,21 @@ model_forecasts = []
 path = os.path.dirname(os.path.abspath(__file__))
 
 for model_dir in model_dirs:
-    
+
     model_path = os.path.join(path, model_dir)
     add_path(model_path)
     model_path_src = os.path.join(model_path, 'src')
     if model_dir == 'rnn':
         add_path(model_path_src)
-    
-    arg_model = '{}.src.prepare'.format(model_dir)
+
+    arg_model = f'{model_dir}.src.prepare'
     model_arg = __import__(arg_model).src.prepare.prep_env()
     model_args.append(model_arg)
-    
-    model_predict = '{}.src.predict'.format(model_dir)
+
+    model_predict = f'{model_dir}.src.predict'
     model_predict = __import__(model_predict).src.predict.forecast
     model_forecasts.append(model_predict)
-    
+
     remove_path(model_path)
     remove_path(model_path_src)
 

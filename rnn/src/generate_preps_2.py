@@ -11,7 +11,7 @@ dic = {
     'PARTIAL_DATA': ['None', 140],
     'ATTN': ['True', 'False']
 }
-for key in dic.keys():
+for key in dic:
     dic[key] = [str(x) if type(x)==int else x for x in dic[key]]
 print(dic)
 for HH in dic['HH']:
@@ -20,15 +20,16 @@ for HH in dic['HH']:
             for OUT in dic['OUT']:
                 for PARTIAL_DATA in dic['PARTIAL_DATA']:
                     for ATTN in dic['ATTN']:
-                        surfix = 'HHTMP_{}_HD1_{}_HD2_{}_OUT_{}_PD_{}_AT_{}'.format(HH, HID_SZ1, HID_SZ2, OUT, PARTIAL_DATA, ATTN)
+                        surfix = f'HHTMP_{HH}_HD1_{HID_SZ1}_HD2_{HID_SZ2}_OUT_{OUT}_PD_{PARTIAL_DATA}_AT_{ATTN}'
+
                         text = origin_prep.replace('HH', HH).replace('HIDSZ1', HID_SZ1).replace('HIDSZ2', 
                         HID_SZ2).replace('OUT', OUT).replace('PARTIAL_DATA', PARTIAL_DATA).replace('ATTN', ATTN)
-                        prep_file = "prep_{}.py".format(surfix)
-                        run_file = 'run_{}.sh'.format(surfix)
-                        submit_file = 'falcon_submit_{}.sh'.format(surfix)
-                        log_file = 'logs/log_{}.txt'.format(surfix)
+                        prep_file = f"prep_{surfix}.py"
+                        run_file = f'run_{surfix}.sh'
+                        submit_file = f'falcon_submit_{surfix}.sh'
+                        log_file = f'logs/log_{surfix}.txt'
                         with open(prep_file, 'w') as f:
                             f.write(text)
                         with open(run_file, 'w') as f:
-                            f.write("python3 pipeline.py {} > {} 2>&1".format(prep_file, log_file))
+                            f.write(f"python3 pipeline.py {prep_file} > {log_file} 2>&1")
                     

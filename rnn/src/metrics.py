@@ -43,14 +43,14 @@ def cal_kdd_metrics_v2(preds, trues, masks):
     assert preds.shape[-1] == 134
     #assert preds.shape[-2] == 288
     #assert preds.shape == trues.shape == masks.shape
-    
+
     mask_sum = masks.sum(axis=-2) + 0.0001
     preds = preds / 1000 # change unit (kW->MW)
     trues = trues / 1000 
-    
+
     mse = ((trues-preds)**2)*masks   # 
     mse = np.sqrt(mse.sum(axis=-2)/mask_sum)  
-    
+
     mae = np.abs(trues-preds)*masks  
     mae = mae.sum(axis=-2)/mask_sum      
     s = 0.5*mse + 0.5*mae 

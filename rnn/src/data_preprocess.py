@@ -30,31 +30,31 @@ class DataPreprocessor():
         if df is None:
             df = self.read_hist_data() 
         df = self.preprocessing(df)
-        
+
         if self.args['generate_noisy_sample']:  # generate sample according to wind speed
             df = self.generate_noisy_sample(df, self.args['normal_noise'])
-        
+
         wt = self.process_field_tmp(df)
         wd = self.process_field_wspd(df)
         df = df.merge(wt, how='left').merge(wd, how='left')
-        
+
         df['tm'] = df['Day'].astype(str) + ',' + df['Tmstamp']
-        
+
         values = pd.pivot_table(index='tm', columns=['TurbID'], values='Patv',
                  data=df, dropna=False).reset_index()
         mask = pd.pivot_table(index='tm', columns=['TurbID'], values='mask', data=df).reset_index()
         tm = values['tm'].str.split(',').str
         values['Tmstamp'] = tm[1]
         values['Day'] = tm[0].astype('float32').astype(int)
-        
+
         mask['Tmstamp'] = tm[1]
         mask['Day'] = tm[0].astype('float32').astype(int)
         values = values.sort_values(['Day', 'Tmstamp']) # 重要
         mask = mask.sort_values(['Day', 'Tmstamp'])
         values['mask_mean'] = mask.mean(axis=1)
         values = values.fillna(method='bfill').fillna(method='ffill')
-        
-        
+
+
         if 'hierarchical' in self.args and self.args['hierarchical']:
             # calculate upper nodes
             base_nodes, hie_dic = self.args['base_nodes'], self.args['hie_dic']
@@ -76,23 +76,23 @@ class DataPreprocessor():
             mask = mask[self.args['base_nodes']]
         mask = self.set_to_float32(mask)
         values = values.merge(wt, how='left').merge(wd, how='left').fillna(method='bfill').fillna(method='ffill')
-        
-        
+
+
         # calculate feature cols
         values['min_of_day'] = pd.to_datetime(values['Tmstamp']).dt.hour*60 + pd.to_datetime(values['Tmstamp']).dt.minute
         values['minutes'] = values['min_of_day'] + (values['Day']-1)*1440
-        
+
         values['sin_tm'] = np.sin(2*np.pi*values['min_of_day'] / 1440)
         values['cos_tm'] = np.cos(2*np.pi*values['min_of_day'] / 1440)
         values['day_norm'] = values['Day'] / 200
-        
+
         # median columns
         median_cols = self.args.get('more_median_cols', [])
         for median_col in median_cols:
             median_cols = self.args['more_median_cols']
             medians = self.cal_median(df, median_cols)
             values = values.merge(medians, how='left')
-        
+
         values = self.set_to_float32(values)
         extend_features = None
         if self.args['mode'] == 'submit':  # feature_cols 
@@ -133,7 +133,7 @@ class DataPreprocessor():
         """
         if 'mask' not in df.columns:
             df = self.cal_mask(df)
-        
+
         df['ws'] = df['Wspd']//0.5 * 0.5
         i1 = df['Wspd'] <= 2.5
         i2 = df['Wspd'] >= 10
@@ -276,25 +276,25 @@ class DataPreprocessor():
         itmp_median.columns = ['Day', 'Tmstamp', 'Itmp_median']
         df = df.merge(itmp_median, how='left')
         mean_df = df.query("mask==1 and mask2==False").groupby(['Day', 'Tmstamp'])[['Patv', 'etmp_median', 'Itmp_median', 'Wspd']].agg(np.mean).reset_index()
-        
-        
+
+
         mean_df.columns = ['Day', 'Tmstamp', "Patv_mean", "Etmp_median", "Itmp_median", 'Wspd_mean']
-        
+
         mask_mean = df.groupby(['Day', 'Tmstamp'])['mask'].mean().reset_index()
         mask_mean.columns = ['Day', 'Tmstamp', 'mask_mean']
         data = df[['Day', 'Tmstamp', 'mask', 'mask2', 'Wspd', 'TurbID', 'sin_tm', 'cos_tm', 'Etmp', 'Itmp', 'Wdir', 'Patv', 'mx', 'cp', 'f']].merge(mean_df, how='left').merge(mask_mean, how='left')
-        
+
         feature_cols = ['TurbID', 'sin_tm', 'cos_tm', 'Etmp', 'Itmp', 'Wspd',
                 'Wdir', 'Patv_mean', 'Etmp_median', 'Itmp_median', 'Wspd_mean', 'mask_mean']
-        
+
         index = data['mask'] == 0
         X = data.loc[index][feature_cols].copy()
         yhat = self.args['lgb_model'].predict(X)
         df.loc[index, 'Patv'] = yhat
-        
+
         df.loc[df['Patv']<0, 'Patv'] = 0
         df.loc[df['Patv']>df['f'], 'Patv'] = df.loc[df['Patv']>df['f'], 'f']
-        
+
         return df
         
     def cal_median(self, raw_df, cols):
@@ -307,10 +307,7 @@ class DataPreprocessor():
         for col in cols:
             ci = raw_df.groupby(['Day', 'Tmstamp'])[col].agg(np.nanmedian).reset_index().fillna(method='bfill')
             ci.columns = ['Day', 'Tmstamp', col + '_median']
-            if x is None:
-                x = ci
-            else:
-                x = x.merge(ci)
+            x = ci if x is None else x.merge(ci)
         return x
     
     

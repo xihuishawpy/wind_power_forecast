@@ -36,8 +36,8 @@ def load_dataset(settings: dict):
     else:
         all_df = pd.read_csv(settings['path_to_test_x'])
         # Online only use the recent total_size number of data, to reduce the preprocessing time cost
-        all_df = all_df.iloc[-(settings['total_size']*134):,:] 
-    all_df['date'] = [t for t in zip(all_df['Day'].values, all_df['Tmstamp'].values)]
+        all_df = all_df.iloc[-(settings['total_size']*134):,:]
+    all_df['date'] = list(zip(all_df['Day'].values, all_df['Tmstamp'].values))
     return all_df
 
 
@@ -102,17 +102,15 @@ def abnormal_preprocess(data: pd.DataFrame, settings: dict):
         ab_turbids = data[data[f'abnormal_{interp_feat}']]['TurbID'].unique()
         new_data = []
         for turbid, a_data in data.groupby('TurbID'):
-            if turbid not in ab_turbids:
-                new_data.append(a_data) 
-            else:
+            if turbid in ab_turbids:
                 # Interpolate first, then  back/forward fill to handle with the missing value on the first or bottom row
                 a_data[interp_feat] = a_data[interp_feat].interpolate()
-                a_data[interp_feat] = a_data[interp_feat].fillna(method='bfill')   
-                a_data[interp_feat] = a_data[interp_feat].fillna(method='ffill') 
-                new_data.append(a_data)
-        data = pd.concat(new_data, axis=0) 
+                a_data[interp_feat] = a_data[interp_feat].fillna(method='bfill')
+                a_data[interp_feat] = a_data[interp_feat].fillna(method='ffill')
+            new_data.append(a_data)
+        data = pd.concat(new_data, axis=0)
         del new_data    
-    
+
     ################################
     # LGB Prediction：Patv
     ################################
@@ -263,21 +261,20 @@ def decompose_fe(data: pd.DataFrame,
                     tsid_fname: str='TurbID',
                     window_size: int=288,
                     cols: List[str]=['Patv']):
-        """Series Decomposition Item"""
-        print('Feature Engineering: Extract Seasonal Series.')
-        all_df_list = []
-        # forloop each turbine
-        for _, a_data in data.groupby(tsid_fname):
-            a_df = a_data.sort_values(time_fname, ascending=True).copy(deep=True)
-            a_df = a_df.reset_index(drop=True)
-            a_df_list = []
-            for f in cols:
-                a_df['seasonal_'+f] = a_df[f] - a_df[f].rolling(window_size).agg(np.mean)
-                a_df_list.append(a_df[[time_fname, tsid_fname, 'seasonal_'+f]])
-            a_df = pd.concat(a_df_list, axis=1)
-            all_df_list.append(a_df)
-        all_df = pd.concat(all_df_list, axis=0)
-        return all_df
+    """Series Decomposition Item"""
+    print('Feature Engineering: Extract Seasonal Series.')
+    all_df_list = []
+    # forloop each turbine
+    for _, a_data in data.groupby(tsid_fname):
+        a_df = a_data.sort_values(time_fname, ascending=True).copy(deep=True)
+        a_df = a_df.reset_index(drop=True)
+        a_df_list = []
+        for f in cols:
+            a_df['seasonal_'+f] = a_df[f] - a_df[f].rolling(window_size).agg(np.mean)
+            a_df_list.append(a_df[[time_fname, tsid_fname, 'seasonal_'+f]])
+        a_df = pd.concat(a_df_list, axis=1)
+        all_df_list.append(a_df)
+    return pd.concat(all_df_list, axis=0)
 
 
 
@@ -304,7 +301,7 @@ def timeseries_split(data: pd.DataFrame,
     """dataset spliting: valid_size=15 day, test_size=15 day
     """
     print('Time Series Splitting.')
-    if is_submit == False:
+    if not is_submit:
         date_range = data['Day'].sort_values().unique()
         val_cutoff_day = date_range[-(val_size+test_size+2)] # 留2天给预测集
         test_cutoff_day = date_range[-test_size-2]
@@ -314,11 +311,10 @@ def timeseries_split(data: pd.DataFrame,
         pred_idxs = data[data['target'].isnull()].index.to_list()
         data['data_type'].iloc[valid_idxs] = 'valid'
         data['data_type'].iloc[test_idxs] = 'test'
-        data['data_type'].iloc[pred_idxs] = 'pred'  
     else:
         data['data_type'] = 'train'
         pred_idxs = data[data['target'].isnull()].index.to_list()
-        data['data_type'].iloc[pred_idxs] = 'pred'
+    data['data_type'].iloc[pred_idxs] = 'pred'
     print("After Data Splitting: train has %d, valid has %d, test has %d, pred has %d" % (len(data[data['data_type']=='train']),
                                                                             len(data[data['data_type']=='valid']),
                                                                             len(data[data['data_type']=='test']),
@@ -334,8 +330,8 @@ def standardlize(data: pd.DataFrame,
     """Standardlizing"""
     print('Standardlizing.')
     ts_IDs = data['TurbID'].unique()
-    if is_submit == False:
-        new_data = []
+    new_data = []
+    if not is_submit:
         # save mu and std of each continuous feature of each turbine 
         scaler_dict = {'real_feats':real_feats}
         for ts_ID in ts_IDs:
@@ -347,13 +343,11 @@ def standardlize(data: pd.DataFrame,
             a_data[real_feats] = (a_data[real_feats] - trn_mean) / trn_std
             new_data.append(a_data)
             scaler_dict[ts_ID] = scaler
-        new_data = pd.concat(new_data, axis=0).reset_index(drop=True)   
+        new_data = pd.concat(new_data, axis=0).reset_index(drop=True)
         np.save(scaler_save_path, scaler_dict) # save mu and std
-    # if online, use saved mu and std to standardlize date
     else:
         scaler_dict = np.load(scaler_save_path, allow_pickle='True').item()
         real_feats = scaler_dict['real_feats']
-        new_data = []
         for ts_ID in ts_IDs:
             a_data = data[data['TurbID']==ts_ID]
             trn_mean = scaler_dict[ts_ID][0]
@@ -377,11 +371,11 @@ def inverse_standardize(data: pd.DataFrame,
     ts_IDs = data['TurbID'].unique()
     for ts_ID in ts_IDs:
         a_data = data[data['TurbID']==ts_ID]
-        if is_submit == False:
+        if not is_submit:
             a_data[real_feats] = a_data[real_feats] * scaler_dict[ts_ID][1] + scaler_dict[ts_ID][0]
         a_data['pred_target'] = a_data['pred_target'] * scaler_dict[ts_ID][1][target_idx] + scaler_dict[ts_ID][0][target_idx]
         new_data.append(a_data)
-    new_data = pd.concat(new_data, axis=0).reset_index(drop=True)    
+    new_data = pd.concat(new_data, axis=0).reset_index(drop=True)
     return new_data
 
 
@@ -406,7 +400,7 @@ def data_preprocess(settings):
     all_df = all_df.sort_values(['TurbID','Day','Tmstamp'], ascending=True)
     day_num = len(all_df['Day'].unique())
     turb_num = len(all_df['TurbID'].unique())
-    time_col = [j for i in range(turb_num) for j in range(int(len(all_df)/turb_num))]
+    time_col = [j for i in range(turb_num) for j in range(len(all_df) // turb_num)]
     all_df['time'] = time_col   
 
     # tsfresh auto-generate features

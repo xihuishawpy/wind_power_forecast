@@ -66,16 +66,16 @@ class LSTM_enc_f(nn.Layer):
         """
         bs = x_enc.shape[0]
         ss = x_enc.shape[1]
-        
+
         _, (h,c) = self.lstm_patv_enc(x_enc)  # x(t+1)
         _, (h2, c2) = self.lstm_wt(x2_enc)
-        
+
         y_last = x_enc[:,-1:,-self.args['v_sz']:] 
         y_last2 = x2_enc[:,-1:,-self.args['v2_sz']:] 
-        
+
         ys = []
         ys2 = []
-        
+
         for i in range(self.pred_len):
             feature2 = f2_dec[:,i:i+1,:] if f2_dec is not None else paddle.empty([bs, ss, 0])
             x2i = paddle.concat([feature2, y_last2], axis=2)  # concat of feature2 and value2
@@ -88,7 +88,7 @@ class LSTM_enc_f(nn.Layer):
             yi, (h, c) = self.lstm_patv_dec(xi, (h,c))
             y_last = self.linear(fluid.layers.relu(self.projection(yi)))  
             ys.append(y_last)   
-        
+
         ys = paddle.concat(ys, axis=1)
         ys2 = paddle.concat(ys2, axis=1)
         return ys, ys2
@@ -167,16 +167,16 @@ class LSTM_enc_f2(nn.Layer):
         """
         bs = x_enc.shape[0]
         ss = x_enc.shape[1]
-        
+
         _, (h,c) = self.lstm_patv_enc(x_enc)  # x(t+1)
         _, (h2, c2) = self.lstm_wt_enc(x2_enc)
-        
+
         y_last = x_enc[:,-self.lb:,-self.stored_args['v_sz']:].median(axis=1,keepdim=True) # median of history true value as input for decoder
         y_last2 = x2_enc[:,-self.lb:,-self.stored_args['v2_sz']:].median(axis=1, keepdim=True) 
-        
+
         ys = []
         ys2 = []
-        
+
         for i in range(self.pred_len):  # recurrent prediction
             feature2 = f2_dec[:,i:i+1,:] if f2_dec is not None else paddle.empty([bs, ss, 0])
             x2i = paddle.concat([feature2, y_last2], axis=2)  # concatenation of feature2 and value2
@@ -190,7 +190,7 @@ class LSTM_enc_f2(nn.Layer):
             yi, (h, c) = self.lstm_patv_dec(xi, (h,c))
             y_last = self.linear(fluid.layers.relu(self.projection(yi)))  
             ys.append(y_last)   # x(t+1)
-        
+
         ys = paddle.concat(ys, axis=1)
         ys2 = paddle.concat(ys2, axis=1)
 
